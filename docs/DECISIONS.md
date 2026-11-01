@@ -92,6 +92,38 @@ This is the durable record of consequential project decisions and the important 
 - **Context and rationale:** The user requested friction-free exploration, targeted context, and autonomous execution within an approved phase, without repeated ledger prompts or mandatory full onboarding at every session.
 - **References:** User-approved instruction revision; [`AGENTS.md`](../AGENTS.md); [optional orientation](AGENT_BOOTSTRAP.md); [D-001](#d-001--maintain-project-questions-and-decisions-in-repository-documentation).
 
+### D-012 — Defer the WebGL2 compatibility renderer
+
+- **Date:** 2026-10-31
+- **Status:** Accepted
+- **Decision:** Stage 0.5 of the modular apartment playground will use WebGPU only. Keep construction state independent of the renderer and report insecure-context, unsupported-WebGPU, and initialization failures clearly. Defer WebGL2 until testing demonstrates a concrete compatibility need.
+- **Context and rationale:** Testing through localhost confirmed that WebGPU initializes on the previously failing system; the issue was the insecure plain-HTTP LAN origin, not hardware compatibility. A second renderer is therefore unnecessary for the current research foundation.
+- **References:** [Construction Workbench brief](../sandboxes/modular-apartment-playground/CONSTRUCTION_WORKBENCH_BRIEF.md); user-approved scope update on 2026-10-31; [D-003](#d-003--build-the-first-sandbox-as-a-blazor-webassembly-webgpu-playground).
+
+### D-013 — Start a separate rendering-research sandbox from the wall workbench
+
+- **Date:** 2026-10-31
+- **Status:** Accepted
+- **Decision:** Create `sandboxes/rendering-playground/` as a separate copy of the current editable-wall playground, reusing its Blazor WebAssembly/.NET 10, Fluent UI, and WebGPU stack. Use the existing wall scene and renderer as a baseline for GPU-reuse research; do not select or implement alternate rendering techniques as part of this starting slice.
+- **Context and rationale:** The existing construction playground places and edits walls well enough to provide a concrete, repeatable scene. Keeping a separate copy lets rendering experiments develop without changing that construction workbench. The sandbox-scoped stack choice does not select the core project engine or resolve the renderer/caching questions in the conceptual research.
+- **References:** [Rendering Playground](../sandboxes/rendering-playground/README.md); [rendering-reuse research notes](../research/gpu-procedural-reuse/README.md); [D-003](#d-003--build-the-first-sandbox-as-a-blazor-webassembly-webgpu-playground).
+
+### D-014 — Compare triangle shading with a ray-marched SDF vent wall
+
+- **Date:** 2026-10-31
+- **Status:** Accepted
+- **Decision:** Add a selectable ray-marched renderer to the Rendering Playground alongside the editable triangle scene. The ray-marched mode uses a fixed reference vent wall defined by signed-distance functions, with separate WGSL source and toggleable steps; it does not replace or alter construction geometry.
+- **Context and rationale:** A bounded reference wall allows a direct technique comparison while avoiding an initial conversion of the entire editable wall arrangement and construction grid into distance fields.
+- **References:** [Rendering Playground](../sandboxes/rendering-playground/README.md); user-approved scope on 2026-10-31.
+
+### D-015 — Add a matched procedural mesh and generated shadow-map comparison
+
+- **Date:** 2026-10-31
+- **Status:** Accepted for the Rendering Playground experiment
+- **Decision:** Compare the bounded SDF reference hatches with matching generated triangle surfaces and cached light-space depth maps. Allow runtime-generated GPU maps, but no painted/imported image assets. Add shared pixel-resolution and greeble-count controls and repeatable GPU-completion measurements; preserve the independent editable construction scene.
+- **Context and rationale:** The user wants self-shadowing and animated lighting with substantially more mathematical detail on a Surface Go 2, and approved testing the phased comparison. Matching geometry and sampling positions avoids benchmarking different scenes. This does not select a core renderer; instancing, normal/depth impostors, and accelerated analytic ray casting remain later experiments.
+- **References:** [Rendering Playground comparison controls](../sandboxes/rendering-playground/README.md#matched-comparison-controls); [D-014](#d-014--compare-triangle-shading-with-a-ray-marched-sdf-vent-wall); user-approved phased comparison on 2026-10-31.
+
 ## Updating this record
 
 - Give each consequential decision a stable `D-NNN` ID; do not reuse IDs.

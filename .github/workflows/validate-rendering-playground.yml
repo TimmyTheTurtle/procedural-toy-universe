@@ -1,0 +1,42 @@
+name: Validate rendering playground
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "sandboxes/rendering-playground/**"
+      - ".github/workflows/validate-rendering-playground.yml"
+  pull_request:
+    paths:
+      - "sandboxes/rendering-playground/**"
+      - ".github/workflows/validate-rendering-playground.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Test construction and rendering baseline
+        run: >
+          node
+          --experimental-default-type=module
+          --test
+          sandboxes/rendering-playground/tests/*.test.mjs
+
+      - name: Build sandbox
+        run: >
+          dotnet build
+          sandboxes/rendering-playground/RenderingPlayground.csproj
+          --configuration Release

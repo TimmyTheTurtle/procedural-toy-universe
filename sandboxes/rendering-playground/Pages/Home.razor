@@ -1,0 +1,952 @@
+﻿@page "/"
+@using System.Globalization
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+
+<PageTitle>Rendering Playground</PageTitle>
+
+<main class="workbench">
+    <header class="workbench-header">
+        <div>
+            <p class="eyebrow">RENDERING RESEARCH · FLEXIBLE EXPERIMENTS</p>
+            <h1>Rendering Playground</h1>
+            <p class="intro">Compare triangle-based rendering with math-defined vent walls and access hatches.</p>
+        </div>
+        <div class="renderer-status" role="status" aria-live="polite">
+            <span class="renderer-indicator" aria-hidden="true"></span>
+            <div>
+                <p>@_rendererStatus.Message</p>
+                @if (!_rendererStatus.Ready && _workbench is not null)
+                {
+                    <FluentButton OnClick="RetryRenderer">Retry graphics</FluentButton>
+                }
+            </div>
+        </div>
+    </header>
+
+    <div class="workspace @(_renderMode != "triangles" ? "reference-workspace" : "") @(_comparisonRunning ? "measuring" : "")">
+        <aside class="panel tools-panel" aria-label="Renderer and scene controls">
+            <details class="control-section" open="@(_renderMode == "triangles")">
+                <summary>Construction tools</summary>
+            <p class="panel-eyebrow">CONSTRUCTION</p>
+            <h2>Wall tools</h2>
+            <p class="panel-copy">Start with a wall, then click it to select and edit it.</p>
+            <div class="button-stack">
+                <FluentButton Appearance="ButtonAppearance.Primary"
+                              Disabled="@(!CanEditConstruction)"
+                              OnClick="BeginPlacement">Place wall</FluentButton>
+                @if (_editor.Mode != "select")
+                {
+                    <FluentButton Disabled="@(!CanEditConstruction)" OnClick="Cancel">Cancel (Esc)</FluentButton>
+                }
+            </div>
+            @if (_editor.Mode is "place" or "duplicate")
+            {
+                <p class="control-label">Rotate preview</p>
+                <div class="button-row">
+                    <FluentButton Disabled="@(!CanEditConstruction)" OnClick="RotateLeft">Left</FluentButton>
+                    <FluentButton Disabled="@(!CanEditConstruction)" OnClick="RotateRight">Right</FluentButton>
+                </div>
+            }
+            <div class="button-row history">
+                <FluentButton Disabled="@(!CanEditConstruction || !_editor.CanUndo)" OnClick="Undo">Undo</FluentButton>
+                <FluentButton Disabled="@(!CanEditConstruction || !_editor.CanRedo)" OnClick="Redo">Redo</FluentButton>
+            </div>
+
+            <fieldset class="settings">
+                <legend>Grid and snapping</legend>
+                <label class="checkbox-label">
+                    <input type="checkbox" checked="@_editor.GridVisible" disabled="@(!CanEditConstruction)"
+                           @onchange="GridVisibilityChanged" />
+                    Show grid
+                </label>
+                <label class="checkbox-label">
+                    <input type="checkbox" checked="@_editor.SnapEnabled" disabled="@(!CanEditConstruction)"
+                           @onchange="SnapChanged" />
+                    Snap position and rotation
+                </label>
+                <label for="grid-spacing">Grid spacing</label>
+                <input id="grid-spacing" type="number" min="0.1" max="5" step="any"
+                       @bind="_gridSpacingInput" @bind:after="GridSpacingChanged"
+                       disabled="@(!CanEditConstruction)" />
+                <label for="rotation-step">Rotation increment (degrees)</label>
+                <input id="rotation-step" type="number" min="1" max="360" step="any"
+                       @bind="_rotationStepInput" @bind:after="RotationStepChanged"
+                       disabled="@(!CanEditConstruction)" />
+            </fieldset>
+            </details>
+
+            <fieldset class="settings renderer-settings" disabled="@_comparisonRunning">
+                <legend>Shader experiment</legend>
+                <label for="render-mode">Renderer</label>
+                <select id="render-mode" value="@_renderMode" disabled="@(!_editor.Ready)"
+                        @onchange="RenderModeChanged">
+                    <option value="triangles">Triangle mesh + surface shader</option>
+                    <option value="raymarch">Ray-marched SDF vent wall</option>
+                    <option value="reference">Matching triangles + shadow maps</option>
+                </select>
+                @if (_renderMode == "triangles")
+                {
+                    <label class="checkbox-label">
+                        <input type="checkbox" checked="@_proceduralPatternEnabled" disabled="@(!_editor.Ready)"
+                               @onchange="ProceduralPatternChanged" />
+                        Procedural vent grill
+                    </label>
+                    <p class="experiment-note">The editable scene is expanded into triangles; the grill is a flat per-fragment pattern.</p>
+                }
+                else
+                {
+                    <p class="experiment-note">Two fixed reference walls compare a flush hatch (left) with a recessed hatch (right). Their vent openings are carved through the walls; construction edits stay in triangle mode.</p>
+                    <label for="render-scale">Render resolution</label>
+                    <select id="render-scale" value="@_renderScale.ToString(CultureInfo.InvariantCulture)" @onchange="RenderScaleChanged">
+                        <option value="1">100% pixels (baseline)</option>
+                        <option value="0.75">75% width / height</option>
+                        <option value="0.5">50% width / height (quarter pixels)</option>
+                    </select>
+                    <label for="greeble-count">Extra greebles per wall</label>
+                    <select id="greeble-count" value="@_greebleCount" @onchange="GreebleCountChanged">
+                        <option value="0">0</option>
+                        <option value="8">8</option>
+                        <option value="32">32</option>
+                        <option value="128">128</option>
+                    </select>
+                    <label for="shadow-resolution">Generated shadow-map size</label>
+                    <select id="shadow-resolution" value="@_shadowResolution" @onchange="ShadowResolutionChanged">
+                        <option value="256">256 × 256 per light</option>
+                        <option value="512">512 × 512 per light</option>
+                        <option value="1024">1024 × 1024 per light</option>
+                    </select>
+                    <FluentButton Disabled="@(!_editor.Ready || _comparisonRunning)" OnClick="RunComparison">
+                        @(_comparisonRunning ? "Measuring both renderers..." : "Run matched comparison")
+                    </FluentButton>
+                    <p class="experiment-note">Tests 0, 32, 128 greebles per wall with the same camera, pixels, lights and motion samples. Keep this tab visible. Results appear below the viewport.</p>
+                }
+            </fieldset>
+
+            <fieldset class="settings shader-controls" disabled="@_comparisonRunning">
+                <legend>Renderer controls</legend>
+                @if (_renderMode == "triangles")
+                {
+                    <label class="checkbox-label">
+                        <input type="checkbox" checked="@_lightingEnabled" disabled="@(!_editor.Ready)"
+                               @onchange="LightingChanged" />
+                        Directional lighting
+                    </label>
+                    <label class="checkbox-label">
+                        <input type="checkbox" checked="@_frameEnabled" disabled="@(!_editor.Ready)"
+                               @onchange="FrameChanged" />
+                        Grill frame
+                    </label>
+                    <label class="checkbox-label">
+                        <input type="checkbox" checked="@_slotsEnabled" disabled="@(!_editor.Ready)"
+                               @onchange="SlotsChanged" />
+                        Repeating slots
+                    </label>
+                    <label class="checkbox-label">
+                        <input type="checkbox" checked="@_edgeSmoothingEnabled" disabled="@(!_editor.Ready)"
+                               @onchange="EdgeSmoothingChanged" />
+                        Edge smoothing
+                    </label>
+                    <label class="checkbox-label">
+                        <input type="checkbox" checked="@_fakeDepthEnabled" disabled="@(!_editor.Ready)"
+                               @onchange="FakeDepthChanged" />
+                        Fake depth shading
+                    </label>
+                }
+                else
+                {
+                    <details class="control-section">
+                        <summary>Geometry and debugging</summary>
+                        <div class="control-content">
+                    <label class="checkbox-label">
+                        <input type="checkbox" checked="@_rayDebugEnabled" disabled="@(!_editor.Ready)"
+                               @onchange="RayDebugChanged" />
+                        Visualize camera ray directions
+                    </label>
+                    <label class="checkbox-label">
+                        <input type="checkbox" checked="@_marchingEnabled" disabled="@(!_editor.Ready)"
+                               @onchange="MarchingChanged" />
+                        Render reference geometry
+                    </label>
+                    <label class="checkbox-label">
+                        <input type="checkbox" checked="@_cutoutsEnabled" disabled="@(!_editor.Ready)"
+                               @onchange="CutoutsChanged" />
+                        Carve vent opening through wall
+                    </label>
+                    <label class="checkbox-label">
+                        <input type="checkbox" checked="@_rayFrameEnabled" disabled="@(!_editor.Ready)"
+                               @onchange="RayFrameChanged" />
+                        Add frame from box functions
+                    </label>
+                    <label class="checkbox-label">
+                        <input type="checkbox" checked="@_slatsEnabled" disabled="@(!_editor.Ready)"
+                               @onchange="SlatsChanged" />
+                        Add math-defined slats
+                    </label>
+                    <label class="checkbox-label">
+                        <input type="checkbox" checked="@_flushHatchEnabled" disabled="@(!_editor.Ready)"
+                               @onchange="FlushHatchChanged" />
+                        Add flush hatch (left wall)
+                    </label>
+                    <label class="checkbox-label">
+                        <input type="checkbox" checked="@_recessedHatchEnabled" disabled="@(!_editor.Ready)"
+                               @onchange="RecessedHatchChanged" />
+                        Add recessed hatch (right wall)
+                    </label>
+                    <label class="checkbox-label">
+                        <input type="checkbox" checked="@_controlPanelEnabled" disabled="@(!_editor.Ready)"
+                               @onchange="ControlPanelChanged" />
+                        Add control panel
+                    </label>
+                    <label class="checkbox-label">
+                        <input type="checkbox" checked="@_overheadFixtureEnabled" disabled="@(!_editor.Ready)"
+                               @onchange="OverheadFixtureChanged" />
+                        Add overhead light fixture
+                    </label>
+                        </div>
+                    </details>
+                    <h3 class="control-heading">Lights</h3>
+                    <label class="checkbox-label">
+                        <input type="checkbox" checked="@_hatchClutterEnabled" disabled="@(!_editor.Ready)"
+                               @onchange="HatchClutterChanged" />
+                        Add pipes and clutter near hatch light
+                    </label>
+                    <p class="experiment-note">Stationary box-section conduits, couplings and brackets below the lamp. Enable overhead light and its shadows to see their shadows cross the hatch; move the lamp to shift them.</p>
+                    <label class="checkbox-label">
+                        <input type="checkbox" checked="@_directionalLightEnabled" disabled="@(!_editor.Ready)"
+                               @onchange="DirectionalLightChanged" />
+                        Main directional light on
+                    </label>
+                    <label class="checkbox-label">
+                        <input type="checkbox" checked="@_overheadLightEnabled" disabled="@(!_editor.Ready)"
+                               @onchange="OverheadLightChanged" />
+                        Overhead hatch light on
+                    </label>
+                    <label for="overhead-intensity">Overhead brightness: @_overheadIntensity.ToString("0.0", CultureInfo.InvariantCulture)×</label>
+                    <input id="overhead-intensity" type="range" min="0" max="4" step="0.1"
+                           value="@_overheadIntensity.ToString(CultureInfo.InvariantCulture)"
+                           disabled="@(!_editor.Ready || !_overheadLightEnabled || !_overheadFixtureEnabled)"
+                           @oninput="OverheadIntensityChanged" />
+                    <p class="experiment-note">1× = original brightness. Scales glow and illumination together; 0 skips overhead shadow work.</p>
+                    <label class="checkbox-label">
+                        <input type="checkbox" checked="@_overheadShadowsEnabled"
+                               disabled="@(!_editor.Ready || !_overheadFixtureEnabled || !_overheadLightEnabled || !_localLightEnabled || !_rayLightingEnabled || !_softShadowsEnabled)"
+                               @onchange="OverheadShadowsChanged" />
+                        Overhead light casts shadows
+                    </label>
+                    <p class="experiment-note">Requires the shared shadow switch below. Uncheck to keep overhead illumination without its shadow cost.</p>
+                    <label class="checkbox-label">
+                        <input type="checkbox" checked="@_lightFlickerEnabled"
+                               disabled="@(!_editor.Ready || !_overheadFixtureEnabled || !_overheadLightEnabled)"
+                               @onchange="LightFlickerChanged" />
+                        Artistic overhead flicker
+                    </label>
+                    <p class="experiment-note">Smooth 70–100% brightness; independent of movement.</p>
+                    <details class="control-section">
+                        <summary>Emission and illumination stages</summary>
+                        <div class="control-content">
+                    <label class="checkbox-label">
+                        <input type="checkbox" checked="@_lightEmissionEnabled" disabled="@(!_editor.Ready || !_overheadFixtureEnabled)"
+                               @onchange="LightEmissionChanged" />
+                        Make light strip luminous
+                    </label>
+                    <label class="checkbox-label">
+                        <input type="checkbox" checked="@_localLightEnabled" disabled="@(!_editor.Ready || !_overheadFixtureEnabled)"
+                               @onchange="LocalLightChanged" />
+                        Illuminate surfaces from overhead light
+                    </label>
+                    <p class="experiment-note">Luminous appearance and local illumination are separate steps. Ambient fill remains when both lights are off.</p>
+                        </div>
+                    </details>
+                    <h3 class="control-heading">Animation</h3>
+                    <label class="checkbox-label">
+                        <input type="checkbox" checked="@_lightAnimationEnabled"
+                               disabled="@(!_editor.Ready || !_overheadFixtureEnabled)"
+                               @onchange="LightAnimationChanged" />
+                        Play moving lamp (uncheck to pause)
+                    </label>
+                    <label for="light-speed">Lamp speed: @_lightAnimationSpeed.ToString("0.00", CultureInfo.InvariantCulture) cycles/s</label>
+                    <input id="light-speed" type="range" min="0.05" max="1" step="0.05"
+                           value="@_lightAnimationSpeed.ToString(CultureInfo.InvariantCulture)"
+                           disabled="@(!_editor.Ready)" @oninput="LightAnimationSpeedChanged" />
+                    <p class="frame-timing" aria-live="off">@_frameTiming</p>
+                    <h3 class="control-heading">Shading and cost</h3>
+                    <label class="checkbox-label">
+                        <input type="checkbox" checked="@_normalsEnabled" disabled="@(!_editor.Ready)"
+                               @onchange="NormalsChanged" />
+                        @(_renderMode == "reference" ? "Use triangle face normals" : "Estimate surface normals")
+                    </label>
+                    <label class="checkbox-label">
+                        <input type="checkbox" checked="@_rayLightingEnabled" disabled="@(!_editor.Ready)"
+                               @onchange="RayLightingChanged" />
+                        Normal-based lighting
+                    </label>
+                    <label class="checkbox-label">
+                        <input type="checkbox" checked="@_softShadowsEnabled" disabled="@(!_editor.Ready)"
+                               @onchange="SoftShadowsChanged" />
+                        @(_renderMode == "reference" ? "Generated depth-map shadows" : "SDF soft shadows")
+                    </label>
+                    <label for="light-size">Approximate light size: @_lightSize.ToString("0.000", CultureInfo.InvariantCulture)</label>
+                    <input id="light-size" type="range" min="0" max="1" step="0.025"
+                           value="@_lightSize.ToString(CultureInfo.InvariantCulture)"
+                           disabled="@(!_editor.Ready || !_softShadowsEnabled || !_rayLightingEnabled)"
+                           @oninput="LightSizeChanged" aria-describedby="light-size-help" />
+                    <p id="light-size-help" class="experiment-note">
+                        @(_renderMode == "reference" ? "Small filtered depth-map kernel, not the SDF penumbra formula. Brightness flicker reuses maps; moving the lamp refreshes them." : "0 = hard shadows; larger = softer edges. Single-ray approximation, not a sampled area light.")
+                    </p>
+                    <label class="checkbox-label">
+                        <input type="checkbox" checked="@_ambientOcclusionEnabled" disabled="@(!_editor.Ready)"
+                               @onchange="AmbientOcclusionChanged" />
+                        Shared SDF ambient occlusion
+                    </label>
+                }
+                <p class="experiment-note">Switch individual shader steps on or off to see what each contributes.</p>
+            </fieldset>
+
+        </aside>
+
+        <section class="viewport" aria-label="Construction plane">
+            <canvas @ref="_canvas"
+                    class="webgpu-canvas"
+                    tabindex="0"
+                    aria-label="Construction plane in XZ with Y as vertical. Click to place or select walls. Drag to orbit, right-drag to pan, and scroll to zoom.">
+            </canvas>
+            <p class="controls-hint">Click to place or select · Drag to orbit around the ground point · Right-drag or Shift-drag to pan · Scroll to zoom · Double-click to reset</p>
+        </section>
+
+        <aside class="panel inspector-panel" aria-label="Wall inspector">
+            <p class="panel-eyebrow">INSPECTOR</p>
+            @if (_editor.Selected is { } wall)
+            {
+                <h2>@wall.Id</h2>
+                <dl class="wall-details">
+                    <div><dt>Position X / Z</dt><dd>@Format(wall.X) / @Format(wall.Z)</dd></div>
+                    <div><dt>Length / height / thickness</dt><dd>@Format(wall.Length) / @Format(wall.Height) / @Format(wall.Thickness)</dd></div>
+                    <div><dt>Pivot</dt><dd>Center of base, Y=0</dd></div>
+                </dl>
+                <label for="wall-rotation">Rotation (degrees)</label>
+                <input id="wall-rotation" type="number" step="any"
+                       @bind="_wallRotationInput" @bind:after="WallRotationChanged"
+                       disabled="@(!CanEditSelection)" />
+                <div class="button-row">
+                    <FluentButton Disabled="@(!CanEditSelection)" OnClick="RotateLeft">Rotate left</FluentButton>
+                    <FluentButton Disabled="@(!CanEditSelection)" OnClick="RotateRight">Rotate right</FluentButton>
+                </div>
+                <div class="button-stack">
+                    <FluentButton Disabled="@(!CanEditSelection)" OnClick="BeginMove">Move</FluentButton>
+                    <FluentButton Disabled="@(!CanEditSelection)" OnClick="BeginDuplicate">Duplicate</FluentButton>
+                    <FluentButton Disabled="@(!CanEditSelection)" OnClick="DeleteSelected">Delete</FluentButton>
+                </div>
+            }
+            else
+            {
+                <h2>No selection</h2>
+                <p class="panel-copy">Click a wall to inspect or edit it. Each wall remains independent.</p>
+            }
+            <p class="wall-count">Walls: @_editor.WallCount</p>
+        </aside>
+    </div>
+
+    @if (_comparisonRunning || _comparisonResults.Count > 0 || !string.IsNullOrEmpty(_comparisonStatus))
+    {
+        <section class="panel comparison-results" aria-label="Matched renderer measurements">
+            <h2>Matched renderer measurements</h2>
+            <p role="status">@_comparisonStatus</p>
+            @if (_comparisonResults.Count > 0)
+            {
+                <div class="comparison-table">
+                    <table>
+                        <thead><tr><th>Greebles / wall</th><th>Renderer</th><th>Pixels</th><th>Triangles</th><th>Median ms</th></tr></thead>
+                        <tbody>
+                            @foreach (var result in _comparisonResults)
+                            {
+                                <tr><td>@result.Greebles</td><td>@(result.Mode == "reference" ? "Triangles + maps" : "SDF rays")</td>
+                                    <td>@result.Width × @result.Height</td><td>@(result.Mode == "reference" ? result.Triangles.ToString() : "Fullscreen")</td>
+                                    <td>@result.MedianMs.ToString("0.00", CultureInfo.InvariantCulture)</td></tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+                <p class="experiment-note">12 measured submissions after 3 warmups per case, waiting for GPU completion. CPU submission + GPU completion latency, not GPU timestamps or display FPS. Shared SDF AO is included when enabled. Shadow softness and analytic versus estimated normals differ; no image/normal-map assets are used.</p>
+            }
+        </section>
+    }
+
+    <section class="panel shader-editor-panel" aria-label="Live shader editor">
+        <details class="shader-details">
+        <summary>Live WGSL editor — @(_renderMode == "raymarch" ? "raymarched-vent-wall.wgsl" : _renderMode == "reference" ? "reference-mesh.wgsl + shared SDF shading" : "procedural-vent-grill.wgsl")</summary>
+        <div class="shader-editor-content">
+        <p id="shader-editor-help" class="experiment-note">
+            Edit the source below. It recompiles after you pause typing; errors leave the last working shader active.
+        </p>
+        <label class="shader-source-label" for="shader-source">WGSL source</label>
+        <textarea id="shader-source" class="shader-source" rows="24"
+                  @bind="_shaderSource" @bind:event="oninput" @bind:after="ShaderSourceChanged"
+                  spellcheck="false" autocomplete="off" autocapitalize="off" autocorrect="off" wrap="off"
+                  aria-describedby="shader-editor-help"
+                  disabled="@(!_editor.Ready || _comparisonRunning)"></textarea>
+        <div class="button-row">
+            <FluentButton Disabled="@(!_editor.Ready)" OnClick="ResetShader">Reset to file</FluentButton>
+        </div>
+        </div>
+        </details>
+        <p class="shader-status" role="status" aria-live="polite">@_shaderStatus</p>
+    </section>
+
+    <div class="editor-feedback" role="status" aria-live="polite">
+        <p>@_editor.Feedback</p>
+        @if (!string.IsNullOrEmpty(_editor.Warning))
+        {
+            <p class="warning">@_editor.Warning</p>
+        }
+    </div>
+    <footer class="workbench-footer">
+        <span>WebGPU experiment · Changes are in memory until this page is closed or reloaded.</span>
+        <span>World axes: X/Z construction plane · Y up</span>
+    </footer>
+</main>
+
+@code {
+    private ElementReference _canvas;
+    private IJSObjectReference? _workbench;
+    private DotNetObjectReference<Home>? _dotNetReference;
+    private RendererStatus _rendererStatus = new() { Message = "Checking browser graphics support…" };
+    private EditorState _editor = new();
+    private string? _gridSpacingInput = "0.5";
+    private string? _rotationStepInput = "90";
+    private string? _wallRotationInput;
+    private bool _proceduralPatternEnabled;
+    private bool _lightingEnabled = true;
+    private bool _frameEnabled = true;
+    private bool _slotsEnabled = true;
+    private bool _edgeSmoothingEnabled = true;
+    private bool _fakeDepthEnabled = true;
+    private bool _cutoutsEnabled = true;
+    private bool _rayFrameEnabled = true;
+    private bool _slatsEnabled = true;
+    private bool _rayLightingEnabled = true;
+    private bool _softShadowsEnabled = true;
+    private bool _ambientOcclusionEnabled = true;
+    private bool _marchingEnabled = true;
+    private bool _normalsEnabled = true;
+    private bool _rayDebugEnabled;
+    private bool _flushHatchEnabled = true;
+    private bool _recessedHatchEnabled = true;
+    private bool _controlPanelEnabled = true;
+    private bool _overheadFixtureEnabled = true;
+    private bool _lightEmissionEnabled = true;
+    private bool _localLightEnabled = true;
+    private bool _directionalLightEnabled = true;
+    private bool _overheadLightEnabled = true;
+    private bool _overheadShadowsEnabled = true;
+    private bool _hatchClutterEnabled;
+    private double _overheadIntensity = 1;
+    private bool _lightFlickerEnabled;
+    private double _lightSize = 0.125;
+    private bool _lightAnimationEnabled;
+    private double _lightAnimationSpeed = 0.25;
+    private string _frameTiming = "Paused; idle frames are not rendered.";
+    private string _renderMode = "triangles";
+    private string _shaderSource = "";
+    private string _shaderStatus = "Loading shader source…";
+    private double _renderScale = 1;
+    private int _shadowResolution = 512;
+    private int _greebleCount;
+    private bool _comparisonRunning;
+    private string _comparisonStatus = "";
+    private List<ComparisonResult> _comparisonResults = new();
+
+    public sealed class ComparisonResult
+    {
+        public string Mode { get; set; } = "";
+        public int Greebles { get; set; }
+        public int Width { get; set; }
+        public int Height { get; set; }
+        public int Triangles { get; set; }
+        public double MedianMs { get; set; }
+    }
+
+    private bool CanEditConstruction => _editor.Ready && _renderMode == "triangles";
+    private bool CanEditSelection => CanEditConstruction && _editor.Mode == "select" && _editor.Selected is not null;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+        {
+            return;
+        }
+
+        try
+        {
+            _workbench = await JS.InvokeAsync<IJSObjectReference>("import", "./js/workbench.js");
+            _dotNetReference = DotNetObjectReference.Create(this);
+            _rendererStatus = await _workbench.InvokeAsync<RendererStatus>("start", _canvas, _dotNetReference);
+            _shaderSource = await _workbench.InvokeAsync<string>("getShaderSource");
+            _shaderStatus = _rendererStatus.Ready
+                ? "Ready. Shader changes compile automatically after a short pause."
+                : "Shader editing is available when WebGPU is ready.";
+        }
+        catch (JSException exception)
+        {
+            _rendererStatus = new() { Message = $"Workbench startup failed: {exception.Message}" };
+        }
+
+        await InvokeAsync(StateHasChanged);
+    }
+
+    [JSInvokable]
+    public Task OnRendererStatusChanged(RendererStatus status)
+    {
+        _rendererStatus = status;
+        return InvokeAsync(StateHasChanged);
+    }
+
+    [JSInvokable]
+    public Task OnShaderStatusChanged(string status)
+    {
+        _shaderStatus = status;
+        return InvokeAsync(StateHasChanged);
+    }
+
+    [JSInvokable]
+    public Task OnEditorStateChanged(EditorState state)
+    {
+        _editor = state;
+        _gridSpacingInput = FormatInput(state.GridSpacing);
+        _rotationStepInput = FormatInput(state.RotationStep);
+        _wallRotationInput = state.Selected is { } wall ? FormatInput(wall.RotationDegrees) : null;
+        return InvokeAsync(StateHasChanged);
+    }
+
+    private async Task RetryRenderer()
+    {
+        if (_workbench is null)
+        {
+            _rendererStatus.Message = "The workbench module could not be loaded. Reload the page to retry.";
+            return;
+        }
+        try
+        {
+            _rendererStatus = await _workbench.InvokeAsync<RendererStatus>("retryRenderer");
+        }
+        catch (JSException exception)
+        {
+            _rendererStatus = new() { Message = $"Graphics retry failed: {exception.Message}" };
+        }
+    }
+
+    private async Task InvokeEditor(string method, params object?[] arguments)
+    {
+        if (_workbench is null)
+        {
+            _editor.Feedback = "The workbench is not available.";
+            return;
+        }
+        try
+        {
+            await _workbench.InvokeVoidAsync(method, arguments);
+        }
+        catch (JSException exception)
+        {
+            _editor.Feedback = $"Editor operation failed: {exception.Message}";
+        }
+    }
+
+    private Task BeginPlacement() => InvokeEditor("beginPlacement");
+    private Task BeginMove() => InvokeEditor("beginMove");
+    private Task BeginDuplicate() => InvokeEditor("beginDuplicate");
+    private Task Cancel() => InvokeEditor("cancel");
+    private Task RotateLeft() => InvokeEditor("rotate", -1);
+    private Task RotateRight() => InvokeEditor("rotate", 1);
+    private Task DeleteSelected() => InvokeEditor("deleteSelected");
+    private Task Undo() => InvokeEditor("undo");
+    private Task Redo() => InvokeEditor("redo");
+    private async Task GridSpacingChanged()
+    {
+        await InvokeEditor("setGridSpacing", _gridSpacingInput);
+        _gridSpacingInput = FormatInput(_editor.GridSpacing);
+    }
+
+    private async Task RotationStepChanged()
+    {
+        await InvokeEditor("setRotationStep", _rotationStepInput);
+        _rotationStepInput = FormatInput(_editor.RotationStep);
+    }
+
+    private async Task WallRotationChanged()
+    {
+        await InvokeEditor("setRotation", _wallRotationInput);
+        _wallRotationInput = _editor.Selected is { } wall ? FormatInput(wall.RotationDegrees) : null;
+    }
+
+    private Task SnapChanged(ChangeEventArgs args) => args.Value is bool enabled
+        ? InvokeEditor("setSnap", enabled)
+        : ReportInvalidSetting("Could not read the snap setting.");
+
+    private Task GridVisibilityChanged(ChangeEventArgs args) => args.Value is bool visible
+        ? InvokeEditor("setGridVisible", visible)
+        : ReportInvalidSetting("Could not read the grid visibility setting.");
+
+    private Task ReportInvalidSetting(string message)
+    {
+        _editor.Feedback = message;
+        return Task.CompletedTask;
+    }
+
+    private async Task RenderModeChanged(ChangeEventArgs args)
+    {
+        if (args.Value is not string mode || mode is not ("triangles" or "raymarch" or "reference"))
+        {
+            _shaderStatus = "Could not read the renderer mode.";
+            return;
+        }
+        if (_workbench is null)
+        {
+            _shaderStatus = "The workbench is not available.";
+            return;
+        }
+
+        try
+        {
+            _shaderSource = await _workbench.InvokeAsync<string>("setRenderMode", mode);
+            _renderMode = mode;
+            _shaderStatus = mode == "raymarch" ? "Ray-marched SDF renderer active." :
+                mode == "reference" ? "Matching triangles with cached shadow maps active." : "Triangle-mesh renderer active.";
+        }
+        catch (JSException exception)
+        {
+            _shaderStatus = $"Could not switch renderer mode: {exception.Message}";
+        }
+    }
+
+    private async Task ProceduralPatternChanged(ChangeEventArgs args)
+    {
+        if (args.Value is not bool enabled)
+        {
+            await ReportInvalidSetting("Could not read the procedural pattern setting.");
+            return;
+        }
+
+        _proceduralPatternEnabled = enabled;
+        await InvokeEditor("setProceduralPattern", enabled);
+    }
+
+    private async Task ShaderFeatureChanged(string feature, ChangeEventArgs args, Action<bool> update)
+    {
+        if (args.Value is not bool enabled)
+        {
+            _shaderStatus = "Could not read the shader-step setting.";
+            return;
+        }
+
+        update(enabled);
+        if (_workbench is null)
+        {
+            _shaderStatus = "The workbench is not available.";
+            return;
+        }
+
+        try
+        {
+            await _workbench.InvokeVoidAsync("setShaderFeature", feature, enabled);
+        }
+        catch (JSException exception)
+        {
+            _shaderStatus = $"Could not update shader step: {exception.Message}";
+        }
+    }
+
+    private Task LightingChanged(ChangeEventArgs args) =>
+        ShaderFeatureChanged("lighting", args, value => _lightingEnabled = value);
+
+    private Task FrameChanged(ChangeEventArgs args) =>
+        ShaderFeatureChanged("frame", args, value => _frameEnabled = value);
+
+    private Task SlotsChanged(ChangeEventArgs args) =>
+        ShaderFeatureChanged("slots", args, value => _slotsEnabled = value);
+
+    private Task EdgeSmoothingChanged(ChangeEventArgs args) =>
+        ShaderFeatureChanged("edgeSmoothing", args, value => _edgeSmoothingEnabled = value);
+
+    private Task FakeDepthChanged(ChangeEventArgs args) =>
+        ShaderFeatureChanged("fakeDepth", args, value => _fakeDepthEnabled = value);
+
+    private Task CutoutsChanged(ChangeEventArgs args) =>
+        ShaderFeatureChanged("cutouts", args, value => _cutoutsEnabled = value);
+
+    private Task RayFrameChanged(ChangeEventArgs args) =>
+        ShaderFeatureChanged("frame", args, value => _rayFrameEnabled = value);
+
+    private Task SlatsChanged(ChangeEventArgs args) =>
+        ShaderFeatureChanged("slats", args, value => _slatsEnabled = value);
+
+    private Task RayLightingChanged(ChangeEventArgs args) =>
+        ShaderFeatureChanged("lighting", args, value => _rayLightingEnabled = value);
+
+    private Task SoftShadowsChanged(ChangeEventArgs args) =>
+        ShaderFeatureChanged("softShadows", args, value => _softShadowsEnabled = value);
+
+    private Task RenderScaleChanged(ChangeEventArgs args) => ComparisonSettingChanged(args, "setRenderScale",
+        value => _renderScale = value);
+
+    private Task ShadowResolutionChanged(ChangeEventArgs args) => ComparisonSettingChanged(args, "setShadowResolution",
+        value => _shadowResolution = (int)value);
+
+    private Task GreebleCountChanged(ChangeEventArgs args) => ComparisonSettingChanged(args, "setGreebleCount",
+        value => _greebleCount = (int)value);
+
+    private Task OverheadIntensityChanged(ChangeEventArgs args) => ComparisonSettingChanged(args, "setOverheadIntensity",
+        value => _overheadIntensity = value);
+
+    private async Task ComparisonSettingChanged(ChangeEventArgs args, string method, Action<double> update)
+    {
+        if (_workbench is null || args.Value is not string input ||
+            !double.TryParse(input, NumberStyles.Float, CultureInfo.InvariantCulture, out var value))
+        {
+            _shaderStatus = "Could not read the comparison setting.";
+            return;
+        }
+        try
+        {
+            await _workbench.InvokeVoidAsync(method, value);
+            update(value);
+        }
+        catch (JSException exception)
+        {
+            _shaderStatus = $"Could not change comparison setting: {exception.Message}";
+        }
+    }
+
+    private async Task RunComparison()
+    {
+        if (_workbench is null) { _comparisonStatus = "The workbench is not available."; return; }
+        _comparisonRunning = true;
+        _comparisonResults.Clear();
+        _comparisonStatus = "Measuring SDF rays and matching triangles. Keep the camera and viewport unchanged.";
+        try
+        {
+            _comparisonResults = await _workbench.InvokeAsync<List<ComparisonResult>>("runComparison");
+            _comparisonStatus = $"Complete. Maps: {_shadowResolution} per light; shadows {(_softShadowsEnabled ? "on" : "off")}; main {(_directionalLightEnabled ? "on" : "off")}; overhead {(_overheadLightEnabled ? "on" : "off")}; AO {(_ambientOcclusionEnabled ? "on" : "off")}; movement {(_lightAnimationEnabled ? "on" : "off")}; flicker {(_lightFlickerEnabled ? "on" : "off")}. Settings restored.";
+        }
+        catch (JSException exception)
+        {
+            _comparisonStatus = $"Comparison failed: {exception.Message}";
+        }
+        finally
+        {
+            _comparisonRunning = false;
+        }
+    }
+
+    private async Task LightSizeChanged(ChangeEventArgs args)
+    {
+        if (args.Value is not string input ||
+            !double.TryParse(input, NumberStyles.Float, CultureInfo.InvariantCulture, out var size) ||
+            !double.IsFinite(size) || size < 0 || size > 1)
+        {
+            _shaderStatus = "Light size must be between 0 and 1.";
+            return;
+        }
+        if (_workbench is null)
+        {
+            _shaderStatus = "The workbench is not available.";
+            return;
+        }
+        try
+        {
+            await _workbench.InvokeVoidAsync("setLightSize", size);
+            _lightSize = size;
+        }
+        catch (JSException exception)
+        {
+            _shaderStatus = $"Could not update light size: {exception.Message}";
+        }
+    }
+
+    private Task AmbientOcclusionChanged(ChangeEventArgs args) =>
+        ShaderFeatureChanged("ambientOcclusion", args, value => _ambientOcclusionEnabled = value);
+
+    private Task MarchingChanged(ChangeEventArgs args) =>
+        ShaderFeatureChanged("marching", args, value => _marchingEnabled = value);
+
+    private Task NormalsChanged(ChangeEventArgs args) =>
+        ShaderFeatureChanged("normals", args, value => _normalsEnabled = value);
+
+    private Task RayDebugChanged(ChangeEventArgs args) =>
+        ShaderFeatureChanged("rayDebug", args, value => _rayDebugEnabled = value);
+
+    private Task FlushHatchChanged(ChangeEventArgs args) =>
+        ShaderFeatureChanged("flushHatch", args, value => _flushHatchEnabled = value);
+
+    private Task RecessedHatchChanged(ChangeEventArgs args) =>
+        ShaderFeatureChanged("recessedHatch", args, value => _recessedHatchEnabled = value);
+
+    private Task ControlPanelChanged(ChangeEventArgs args) =>
+        ShaderFeatureChanged("controlPanel", args, value => _controlPanelEnabled = value);
+
+    private Task OverheadFixtureChanged(ChangeEventArgs args) =>
+        ShaderFeatureChanged("overheadFixture", args, value => _overheadFixtureEnabled = value);
+
+    private Task LightEmissionChanged(ChangeEventArgs args) =>
+        ShaderFeatureChanged("lightEmission", args, value => _lightEmissionEnabled = value);
+
+    private Task LocalLightChanged(ChangeEventArgs args) =>
+        ShaderFeatureChanged("localLight", args, value => _localLightEnabled = value);
+
+    private Task DirectionalLightChanged(ChangeEventArgs args) =>
+        ShaderFeatureChanged("directionalLight", args, value => _directionalLightEnabled = value);
+
+    private Task OverheadLightChanged(ChangeEventArgs args) =>
+        ShaderFeatureChanged("overheadLight", args, value => _overheadLightEnabled = value);
+
+    private Task OverheadShadowsChanged(ChangeEventArgs args) =>
+        ShaderFeatureChanged("overheadShadows", args, value => _overheadShadowsEnabled = value);
+
+    private Task HatchClutterChanged(ChangeEventArgs args) =>
+        ShaderFeatureChanged("hatchClutter", args, value => _hatchClutterEnabled = value);
+
+    private Task LightFlickerChanged(ChangeEventArgs args) =>
+        ShaderFeatureChanged("lightFlicker", args, value => _lightFlickerEnabled = value);
+
+    [JSInvokable]
+    public Task OnFrameTimingChanged(string timing)
+    {
+        _frameTiming = timing;
+        return InvokeAsync(StateHasChanged);
+    }
+
+    private async Task LightAnimationChanged(ChangeEventArgs args)
+    {
+        if (_workbench is null)
+        {
+            _shaderStatus = "The workbench is not available.";
+            return;
+        }
+        try
+        {
+            var enabled = args.Value is true;
+            await _workbench.InvokeVoidAsync("setLightAnimation", enabled);
+            _lightAnimationEnabled = enabled;
+        }
+        catch (JSException exception)
+        {
+            _shaderStatus = $"Could not update light animation: {exception.Message}";
+        }
+    }
+
+    private async Task LightAnimationSpeedChanged(ChangeEventArgs args)
+    {
+        if (args.Value is not string input ||
+            !double.TryParse(input, NumberStyles.Float, CultureInfo.InvariantCulture, out var speed) ||
+            !double.IsFinite(speed) || speed < 0.05 || speed > 1)
+        {
+            _shaderStatus = "Light animation speed must be between 0.05 and 1 cycles per second.";
+            return;
+        }
+        if (_workbench is null)
+        {
+            _shaderStatus = "The workbench is not available.";
+            return;
+        }
+        try
+        {
+            await _workbench.InvokeVoidAsync("setLightAnimationSpeed", speed);
+            _lightAnimationSpeed = speed;
+        }
+        catch (JSException exception)
+        {
+            _shaderStatus = $"Could not update light animation speed: {exception.Message}";
+        }
+    }
+
+    private async Task ShaderSourceChanged()
+    {
+        if (_workbench is null)
+        {
+            _shaderStatus = "The workbench is not available.";
+            return;
+        }
+
+        try
+        {
+            await _workbench.InvokeVoidAsync("setShaderSource", _shaderSource);
+        }
+        catch (JSException exception)
+        {
+            _shaderStatus = $"Could not update shader source: {exception.Message}";
+        }
+    }
+
+    private async Task ResetShader()
+    {
+        if (_workbench is null)
+        {
+            _shaderStatus = "The workbench is not available.";
+            return;
+        }
+
+        try
+        {
+            _shaderSource = await _workbench.InvokeAsync<string>("getDefaultShaderSource");
+            _shaderStatus = "Restoring shader from file…";
+            await ShaderSourceChanged();
+        }
+        catch (JSException exception)
+        {
+            _shaderStatus = $"Could not restore shader source: {exception.Message}";
+        }
+    }
+
+    private static string Format(double value) => value.ToString("0.##", CultureInfo.InvariantCulture);
+    private static string FormatInput(double value) => value.ToString("G", CultureInfo.InvariantCulture);
+
+    public sealed class RendererStatus
+    {
+        public bool Ready { get; set; }
+        public string Message { get; set; } = "";
+    }
+
+    public sealed class EditorState
+    {
+        public bool Ready { get; set; }
+        public string Mode { get; set; } = "select";
+        public int WallCount { get; set; }
+        public WallDetails? Selected { get; set; }
+        public bool SnapEnabled { get; set; } = true;
+        public bool GridVisible { get; set; } = true;
+        public double GridSpacing { get; set; } = 0.5;
+        public double RotationStep { get; set; } = 90;
+        public bool CanUndo { get; set; }
+        public bool CanRedo { get; set; }
+        public string Feedback { get; set; } = "Starting workbench…";
+        public string Warning { get; set; } = "";
+    }
+
+    public sealed class WallDetails
+    {
+        public string Id { get; set; } = "";
+        public double X { get; set; }
+        public double Z { get; set; }
+        public double Length { get; set; }
+        public double Height { get; set; }
+        public double Thickness { get; set; }
+        public double RotationDegrees { get; set; }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_workbench is not null)
+        {
+            try
+            {
+                await _workbench.InvokeVoidAsync("stop");
+                await _workbench.DisposeAsync();
+            }
+            catch (JSDisconnectedException)
+            {
+            }
+        }
+
+        _dotNetReference?.Dispose();
+    }
+}

@@ -1,0 +1,11 @@
+{
+  "remote.autoForwardPorts": true,
+  "remote.autoForwardPortsSource": "process",
+  "remote.restoreForwardedPorts": true,
+  "remote.portsAttributes": {
+    "5290": {
+      "label": "Construction Workbench",
+      "onAutoForward": "silent"
+    }
+  }
+}

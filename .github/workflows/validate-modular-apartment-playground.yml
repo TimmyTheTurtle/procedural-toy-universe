@@ -28,6 +28,13 @@ jobs:
         with:
           dotnet-version: 10.0.x
 
+      - name: Test construction and viewport
+        run: >
+          node
+          --experimental-default-type=module
+          --test
+          sandboxes/modular-apartment-playground/tests/*.test.mjs
+
       - name: Build sandbox
         run: >
           dotnet build
