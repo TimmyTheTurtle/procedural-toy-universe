@@ -28,8 +28,12 @@ In the Copilot harness, select [Ada](.github/agents/ada.agent.md) for collaborat
 ## Learning resources
 - [Certification training hub](training/README.md) — GH-600, AI-103, and AI-500 study tracks with shared Responsible AI practices.
 
+## Experiment sandboxes
+- [Construction Workbench](sandboxes/modular-apartment-playground/README.md) — editable walls and spatial placement for construction-grammar research.
+- [Rendering Playground](sandboxes/rendering-playground/README.md) — a copied wall-scene baseline for GPU rendering-reuse experiments.
+
 ## Status
-Concept / architecture exploration. No implementation stack chosen yet.
+Core project is in concept / architecture exploration; its implementation stack is not chosen. Research sandboxes may use scoped stacks independently.
 
 ## Licensing
 Code and original assets are **not yet licensed for redistribution** until an explicit LICENSE and asset-license policy are approved. Public visibility alone does not grant reuse rights. See [docs/ASSET_POLICY.md](docs/ASSET_POLICY.md).
