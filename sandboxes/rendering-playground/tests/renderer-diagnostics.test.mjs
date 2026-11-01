@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import {
     getDefaultShaderSource,
+    utilityArcFlashIntensity,
     getLightSize,
     lightFlickerBrightness,
     getLightAnimation,
@@ -36,6 +37,30 @@ const raymarchShaderSource = readFileSync(
     "utf8",
 );
 const meshShaderSource = readFileSync(new URL("../wwwroot/shaders/reference-mesh.wgsl", import.meta.url), "utf8");
+const maintenanceShaderSource = readFileSync(
+    new URL("../wwwroot/shaders/raymarched-maintenance-bay.wgsl", import.meta.url),
+    "utf8",
+);
+
+test("maintenance bay is a ray-marched SDF scene with the hidden arc behind the pipe field", () => {
+    assert.match(maintenanceShaderSource, /fn capsuleDistance\(/);
+    assert.match(maintenanceShaderSource, /fn sceneSurface\(/);
+    assert.match(maintenanceShaderSource, /fn marchScene\(/);
+    assert.match(maintenanceShaderSource, /fn shadowVisibility\(/);
+    assert.match(maintenanceShaderSource, /const workLightPosition = vec3<f32>\(-0\.48, 2\.51, 0\.12\)/);
+    assert.match(maintenanceShaderSource, /const arcSourcePosition = vec3<f32>\(1\.24, 1\.70, 0\.16\)/);
+    assert.match(maintenanceShaderSource, /if camera\.accentSettings\.z > 0\.5 && camera\.accentSettings\.y > 0\.05/);
+    assert.match(maintenanceShaderSource, /surface = nearestSurface\(surface, vec2<f32>\(arc, 9\.0\)\)/);
+    assert.match(maintenanceShaderSource, /return vec4<f32>\(surfaceColor\(hit\.position, direction, hit\.material\), 1\.0\)/);
+});
+
+test("electrical arc flashes are bounded and deterministic", () => {
+    assert.equal(utilityArcFlashIntensity(0.05), 1);
+    assert.equal(utilityArcFlashIntensity(0.5), 0);
+    assert.equal(utilityArcFlashIntensity(0.05), utilityArcFlashIntensity(0.05));
+    assert.throws(() => utilityArcFlashIntensity(-0.1), RangeError);
+    assert.throws(() => utilityArcFlashIntensity(Number.NaN), RangeError);
+});
 
 test("ray shader selects the analytic floor normal before optional wall estimation", () => {
     assert.match(raymarchShaderSource,

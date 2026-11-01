@@ -402,6 +402,14 @@ export class WorkbenchController {
         this.renderer.setLightAnimationSpeed(numberFromInput(value, "Light animation speed"));
     }
 
+    setUtilityArcEnabled(enabled) {
+        this.renderer.setUtilityArcEnabled(enabled);
+    }
+
+    setUtilityArcBrightness(value) {
+        this.renderer.setUtilityArcBrightness(numberFromInput(value, "Arc brightness"));
+    }
+
     async setRenderMode(mode) {
         this.clearPendingClicks();
         const source = await this.renderer.setRenderMode(
@@ -414,6 +422,7 @@ export class WorkbenchController {
             this.preview = null;
         }
         this.feedback = mode === "triangles" ? "Triangle-mesh scene active." :
+            mode === "utility" ? "Ray-marched maintenance bay active: SDF wall, panel, pipes, floor, and lights." :
             `${mode === "raymarch" ? "Ray-marched" : "Triangle + shadow-map"} hatch comparison active: flush left, recessed right; construction edits remain in triangle mode.`;
         this.publish();
         return source;
@@ -684,6 +693,8 @@ export function setLightSize(value) { requireController().setLightSize(value); }
 export function setOverheadIntensity(value) { requireController().renderer.setOverheadIntensity(value); }
 export function setLightAnimation(enabled) { requireController().setLightAnimation(enabled); }
 export function setLightAnimationSpeed(value) { requireController().setLightAnimationSpeed(value); }
+export function setUtilityArcEnabled(value) { requireController().setUtilityArcEnabled(value); }
+export function setUtilityArcBrightness(value) { requireController().setUtilityArcBrightness(value); }
 export function setRenderScale(value) { requireController().renderer.setRenderScale(value); }
 export function setShadowResolution(value) { requireController().renderer.setShadowResolution(value); }
 export function setGreebleCount(value) { requireController().renderer.setGreebleCount(value); }

@@ -27,6 +27,8 @@ This subproject addresses the layer missing from a conventional snap-together ed
 **Scope now:** Concepts, vocabulary, examples, relationships, design tensions, and research questions.  
 **Not in scope now:** Implementing the engine, choosing an ECS or solver library, converting Quaternius assets, committing meshes or textures, defining final serialized schemas, or prescribing milestones.
 
+The separate [Construction Grammar Sandbox](../../sandboxes/modular-apartment-playground/README.md) is a hands-on research aid, not an implementation of this conceptual model. It currently explores editable walls and spatial placement; enclosure meaning, requirement/capability relationships, and grammar-driven generation remain open.
+
 ## 2. Background and established project principles
 
 ### 2.1 Planet Coaster as interaction model, not world model

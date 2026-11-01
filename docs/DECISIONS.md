@@ -23,7 +23,7 @@ This is the durable record of consequential project decisions and the important 
 ### D-003 — Build the first sandbox as a Blazor WebAssembly WebGPU playground
 
 - **Date:** 2026-10-27
-- **Status:** Accepted
+- **Status:** Accepted for the sandbox technology; the original rotating-cube scene request is superseded by D-017.
 - **Decision:** Implement the first sandbox in `sandboxes/modular-apartment-playground/` as a stand-alone Blazor WebAssembly app targeting .NET 10, using Fluent UI Blazor for interface components and the browser's native WebGPU API through JavaScript interop. Give it a sandbox-scoped GitHub Actions build workflow. Keep Pages deployment separate and deliberate; its explicit trigger remains open under Q-008.
 - **Context and rationale:** The user selected Blazor WebAssembly, Fluent UI, and WebGPU for the first sandbox and requested a full-width interface with a basic rotating cube. This sandbox choice does not select the engine or application stack for the core project, so Q-001 remains open. Unlike the prior assumption that browser sandboxes would be authored as local static HTML, this sandbox is a .NET application that publishes static web assets.
 - **References:** User-approved implementation request on 2026-10-27; [sandbox README](../sandboxes/modular-apartment-playground/README.md); [sandbox workflow](../.github/workflows/validate-modular-apartment-playground.yml); [`OPEN_QUESTIONS.md`](OPEN_QUESTIONS.md).
@@ -39,7 +39,7 @@ This is the durable record of consequential project decisions and the important 
 ### D-005 — Start the apartment scene with interchangeable wall components
 
 - **Date:** 2026-10-26
-- **Status:** Accepted
+- **Status:** Superseded by D-017 for the current sandbox scope; retained as historical context.
 - **Decision:** The modular apartment playground's first scene should be assembled from interchangeable wall component definitions, initially including plain walls, window walls, and door walls. The UI does not need component editing controls yet.
 - **Context and rationale:** This keeps the first construction increment focused on reusable scene composition while postponing editor UX. The component boundary supports later snapping, persistence, and blueprint work without hard-coding one apartment layout.
 - **References:** User-approved implementation discussion on 2026-10-26; [sandbox README](../sandboxes/modular-apartment-playground/README.md).
@@ -98,7 +98,7 @@ This is the durable record of consequential project decisions and the important 
 - **Status:** Accepted
 - **Decision:** Stage 0.5 of the modular apartment playground will use WebGPU only. Keep construction state independent of the renderer and report insecure-context, unsupported-WebGPU, and initialization failures clearly. Defer WebGL2 until testing demonstrates a concrete compatibility need.
 - **Context and rationale:** Testing through localhost confirmed that WebGPU initializes on the previously failing system; the issue was the insecure plain-HTTP LAN origin, not hardware compatibility. A second renderer is therefore unnecessary for the current research foundation.
-- **References:** [Construction Workbench brief](../sandboxes/modular-apartment-playground/CONSTRUCTION_WORKBENCH_BRIEF.md); user-approved scope update on 2026-10-31; [D-003](#d-003--build-the-first-sandbox-as-a-blazor-webassembly-webgpu-playground).
+- **References:** [Construction Grammar Sandbox note](../sandboxes/modular-apartment-playground/CONSTRUCTION_WORKBENCH_BRIEF.md); user-approved scope update on 2026-10-31; [D-003](#d-003--build-the-first-sandbox-as-a-blazor-webassembly-webgpu-playground).
 
 ### D-013 — Start a separate rendering-research sandbox from the wall workbench
 
@@ -106,23 +106,39 @@ This is the durable record of consequential project decisions and the important 
 - **Status:** Accepted
 - **Decision:** Create `sandboxes/rendering-playground/` as a separate copy of the current editable-wall playground, reusing its Blazor WebAssembly/.NET 10, Fluent UI, and WebGPU stack. Use the existing wall scene and renderer as a baseline for GPU-reuse research; do not select or implement alternate rendering techniques as part of this starting slice.
 - **Context and rationale:** The existing construction playground places and edits walls well enough to provide a concrete, repeatable scene. Keeping a separate copy lets rendering experiments develop without changing that construction workbench. The sandbox-scoped stack choice does not select the core project engine or resolve the renderer/caching questions in the conceptual research.
-- **References:** [Rendering Playground](../sandboxes/rendering-playground/README.md); [rendering-reuse research notes](../research/gpu-procedural-reuse/README.md); [D-003](#d-003--build-the-first-sandbox-as-a-blazor-webassembly-webgpu-playground).
+- **References:** [Rendering Sandbox](../sandboxes/rendering-playground/README.md); [rendering-reuse research notes](../research/gpu-procedural-reuse/README.md); [D-003](#d-003--build-the-first-sandbox-as-a-blazor-webassembly-webgpu-playground).
 
 ### D-014 — Compare triangle shading with a ray-marched SDF vent wall
 
 - **Date:** 2026-10-31
 - **Status:** Accepted
-- **Decision:** Add a selectable ray-marched renderer to the Rendering Playground alongside the editable triangle scene. The ray-marched mode uses a fixed reference vent wall defined by signed-distance functions, with separate WGSL source and toggleable steps; it does not replace or alter construction geometry.
+- **Decision:** Add a selectable ray-marched renderer to the Rendering Sandbox alongside the editable triangle scene. The ray-marched mode uses a fixed reference vent wall defined by signed-distance functions, with separate WGSL source and toggleable steps; it does not replace or alter construction geometry.
 - **Context and rationale:** A bounded reference wall allows a direct technique comparison while avoiding an initial conversion of the entire editable wall arrangement and construction grid into distance fields.
-- **References:** [Rendering Playground](../sandboxes/rendering-playground/README.md); user-approved scope on 2026-10-31.
+- **References:** [Rendering Sandbox](../sandboxes/rendering-playground/README.md); user-approved scope on 2026-10-31.
 
 ### D-015 — Add a matched procedural mesh and generated shadow-map comparison
 
 - **Date:** 2026-10-31
-- **Status:** Accepted for the Rendering Playground experiment
+- **Status:** Accepted for the Rendering Sandbox experiment
 - **Decision:** Compare the bounded SDF reference hatches with matching generated triangle surfaces and cached light-space depth maps. Allow runtime-generated GPU maps, but no painted/imported image assets. Add shared pixel-resolution and greeble-count controls and repeatable GPU-completion measurements; preserve the independent editable construction scene.
 - **Context and rationale:** The user wants self-shadowing and animated lighting with substantially more mathematical detail on a Surface Go 2, and approved testing the phased comparison. Matching geometry and sampling positions avoids benchmarking different scenes. This does not select a core renderer; instancing, normal/depth impostors, and accelerated analytic ray casting remain later experiments.
-- **References:** [Rendering Playground comparison controls](../sandboxes/rendering-playground/README.md#matched-comparison-controls); [D-014](#d-014--compare-triangle-shading-with-a-ray-marched-sdf-vent-wall); user-approved phased comparison on 2026-10-31.
+- **References:** [Rendering Sandbox comparison controls](../sandboxes/rendering-playground/README.md#matched-comparison-controls); [D-014](#d-014--compare-triangle-shading-with-a-ray-marched-sdf-vent-wall); user-approved phased comparison on 2026-10-31.
+
+### D-016 — Add an SDF-only maintenance-bay rendering experiment
+
+- **Date:** 2026-11-01
+- **Status:** Accepted for the Rendering Sandbox experiment
+- **Decision:** Add a separate selectable maintenance-bay scene to the Rendering Sandbox. Model the wall, floor, panel, pipes, fixed work light, and concealed pulsing electrical fault with signed-distance functions and render them with ray marching. Keep the existing editable triangle scene and hatch renderer comparisons available. Use view-independent surface normals for this scene so camera orbit does not change its lighting response.
+- **Context and rationale:** The owner wants to reproduce the explored pipe-and-control-panel concept with basic mathematical shapes and functions, including protruding pipes, a reachable panel, work-light shadows, and a bright strobing fault behind the pipe bundle. This is a bounded rendering experiment and does not select a renderer for the core project or the Construction Grammar Sandbox.
+- **References:** [Rendering Sandbox implementation](../sandboxes/rendering-playground/README.md); user-approved scope on 2026-11-01; [D-014](#d-014--compare-triangle-shading-with-a-ray-marched-sdf-vent-wall); [D-015](#d-015--add-a-matched-procedural-mesh-and-generated-shadow-map-comparison).
+
+### D-017 — Treat the construction sandbox as a wall-editing research workbench
+
+- **Date:** 2026-11-01
+- **Status:** Current sandbox scope
+- **Decision:** The Construction Grammar Sandbox is a small WebGPU wall-editing experiment: one fixed wall type, manual placement and manipulation, optional snapping, and in-memory state. It does not implement semantic grammar, enclosure detection, rooms, ceilings, or procedural layout. The core project stack and architecture remain open.
+- **Context and rationale:** The sandbox has advanced from the original rotating-cube and interchangeable-wall scene to an editable construction workbench. Keeping its current behavior distinct from the broader vision prevents sandbox experiments from being mistaken for core architecture or completed grammar functionality.
+- **References:** [Construction Grammar Sandbox](../sandboxes/modular-apartment-playground/README.md); [current sandbox state and enclosure experiment](../sandboxes/modular-apartment-playground/CONSTRUCTION_WORKBENCH_BRIEF.md); user request to bring the documentation current on 2026-11-01.
 
 ## Updating this record
 

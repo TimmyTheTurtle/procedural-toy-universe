@@ -4,7 +4,11 @@
   "remote.restoreForwardedPorts": true,
   "remote.portsAttributes": {
     "5290": {
-      "label": "Construction Workbench",
+      "label": "Construction Grammar Sandbox",
+      "onAutoForward": "silent"
+    },
+    "5291": {
+      "label": "Rendering Sandbox",
       "onAutoForward": "silent"
     }
   }

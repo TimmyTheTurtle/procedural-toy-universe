@@ -1,10 +1,12 @@
-# Construction Workbench
+# Construction Grammar Sandbox
 
 A Blazor WebAssembly sandbox for semantic-construction-grammar research. Stage 1 explores editable wall pieces, spatial placement, and optional snapping on an XZ construction plane. The renderer uses browser-native WebGPU; wall state is independent of GPU resources.
 
 ## Run locally
 
 Requires the .NET 10 SDK and a browser with WebGPU support. From the repository root:
+
+The Construction Grammar Sandbox uses HTTP port `5290` (HTTPS `7109`). The separate Rendering Sandbox uses HTTP port `5291` (HTTPS `7110`), so both can run concurrently. VS Code Remote is configured to forward both HTTP ports.
 
 ```sh
 dotnet run --project sandboxes/modular-apartment-playground/ModularApartmentPlayground.csproj
@@ -36,9 +38,9 @@ Manual wall overlaps and crossings are allowed but produce a warning. Ordinary s
 ## Current scope and limitations
 
 - Walls are independent and editable, but the scene exists only in memory. Reloading or closing the page discards it.
-- The visible ground and grid are construction guides, not generated room floors. Automatic floor/ceiling generation, lights, wall variants, persistence, and semantic grammar execution remain later work.
+- The visible ground and grid are construction guides, not generated room floors. The editor does not identify enclosed spaces or provide manual or generated ceilings yet. Wall variants, persistence, and semantic grammar execution are also unexplored.
 - WebGL2 remains deferred unless testing demonstrates a compatibility need.
-- See [CONSTRUCTION_WORKBENCH_BRIEF.md](CONSTRUCTION_WORKBENCH_BRIEF.md) for the staged research direction and open questions.
+- See [CONSTRUCTION_WORKBENCH_BRIEF.md](CONSTRUCTION_WORKBENCH_BRIEF.md) for the current implementation state and open enclosure experiments.
 
 ## Validation and publishing
 

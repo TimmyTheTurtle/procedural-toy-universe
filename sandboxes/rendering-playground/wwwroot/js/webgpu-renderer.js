@@ -12,6 +12,11 @@ const renderModes = {
         vertexEntry: "rayVertexMain",
         fragmentEntry: "rayFragmentMain",
     },
+    utility: {
+        shaderPath: "../shaders/raymarched-maintenance-bay.wgsl",
+        vertexEntry: "utilityVertexMain",
+        fragmentEntry: "utilityFragmentMain",
+    },
     reference: {
         shaderPath: "../shaders/reference-mesh.wgsl",
         vertexEntry: "meshVertexMain",
@@ -53,6 +58,9 @@ let renderMode = "triangles";
 let proceduralPatternEnabled = false;
 let lightSize = 0.125;
 let overheadIntensity = 1;
+let utilityArcEnabled = true;
+let utilityArcBrightness = 8;
+let utilityTime = 0;
 let lightAnimationEnabled = false;
 let lightAnimationSpeed = 0.25;
 let lightPhase = 0;
@@ -570,6 +578,20 @@ function updateCameraUniform() {
         uniforms[19] = features.slots ? 1 : 0;
         uniforms[20] = features.edgeSmoothing ? 1 : 0;
         uniforms[21] = features.fakeDepth ? 1 : 0;
+    } else if (renderMode === "utility") {
+        uniforms.set([...frame.eye, 1], 16);
+        uniforms.set([...frame.forward, 0], 20);
+        uniforms.set([...frame.right, 0], 24);
+        uniforms.set([...frame.up, 0], 28);
+        uniforms.set([canvas.width, canvas.height, canvas.width / canvas.height, 0], 32);
+        uniforms.set([0, 0, 1, 1], 36);
+        uniforms.set([0, 0, 0, 1], 40);
+        uniforms.set([0, 0, 0, 0], 44);
+        uniforms.set([0, 0, 0, 0], 48);
+        const arcPower = utilityArcEnabled
+            ? utilityArcBrightness * utilityArcFlashIntensity(utilityTime)
+            : 0;
+        uniforms.set([utilityTime, arcPower, utilityArcEnabled ? 1 : 0, 0], 52);
     } else {
         const features = shaderFeatures.raymarch;
         uniforms.set([...frame.eye, 1], 16);
@@ -664,9 +686,26 @@ export function lightFlickerBrightness(seconds) {
 }
 
 function isLightAnimating() {
-    return !benchmarkRunning && (lightAnimationEnabled || isFlickering()) && renderMode !== "triangles" &&
-        shaderFeatures.raymarch.overheadFixture &&
+    return !benchmarkRunning && (renderMode === "utility" ||
+        ((lightAnimationEnabled || isFlickering()) && renderMode !== "triangles" &&
+        shaderFeatures.raymarch.overheadFixture)) &&
         (typeof document === "undefined" || !document.hidden);
+}
+
+export function utilityArcFlashIntensity(seconds) {
+    if (!Number.isFinite(seconds) || seconds < 0) {
+        throw new RangeError("Arc time must be finite and nonnegative.");
+    }
+    const cyclePosition = seconds * 1.2;
+    const cycle = Math.floor(cyclePosition);
+    const phase = cyclePosition - cycle;
+    const bursts = [
+        [[0.035, 0.12]],
+        [[0.075, 0.15], [0.205, 0.28]],
+        [[0.025, 0.105]],
+        [[0.12, 0.19], [0.245, 0.31], [0.36, 0.42]],
+    ];
+    return bursts[cycle % bursts.length].some(([start, end]) => phase >= start && phase < end) ? 1 : 0;
 }
 
 function resetAnimationTiming() {
@@ -698,6 +737,7 @@ function drawFrame(timestamp) {
                         (Math.PI * 2);
                 }
                 if (isFlickering()) flickerTime += elapsed * 0.001;
+                if (renderMode === "utility") utilityTime += elapsed * 0.001;
                 timingElapsed += elapsed;
                 timingFrames += 1;
                 if (timingElapsed >= 1000) {
@@ -909,7 +949,9 @@ export async function setRenderMode(mode, onStatus) {
     }
     const source = activeShaderSources[mode] || defaultShaderSources[mode];
     const activeDevice = device;
-    onStatus?.(`Compiling ${mode === "raymarch" ? "ray-marched" : "triangle"} shader…`);
+    const modeLabel = mode === "raymarch" || mode === "utility" ? "ray-marched" :
+        mode === "reference" ? "comparison" : "triangle";
+    onStatus?.(`Compiling ${modeLabel} shader…`);
 
     try {
         let nextPipeline = pipelines[mode];
@@ -933,6 +975,7 @@ export async function setRenderMode(mode, onStatus) {
         bindGroup = nextBindGroup;
         scheduleRender();
         const status = mode === "raymarch" ? "Ray-marched SDF vent wall active." :
+            mode === "utility" ? "Ray-marched maintenance bay active; arc and panel lights are animating." :
             mode === "reference" ? "Matching triangles with cached shadow maps active." : "Triangle-mesh renderer active.";
         onStatus?.(status);
         return getShaderSource();
@@ -1092,6 +1135,22 @@ export function setLightAnimationSpeed(speed) {
     lightAnimationSpeed = speed;
 }
 
+export function setUtilityArcEnabled(enabled) {
+    if (typeof enabled !== "boolean") {
+        throw new RangeError("Arc enabled setting must be a boolean.");
+    }
+    utilityArcEnabled = enabled;
+    if (device && !renderFailed) scheduleRender();
+}
+
+export function setUtilityArcBrightness(brightness) {
+    if (typeof brightness !== "number" || !Number.isFinite(brightness) || brightness < 0 || brightness > 12) {
+        throw new RangeError("Arc brightness must be between 0 and 12.");
+    }
+    utilityArcBrightness = brightness;
+    if (device && !renderFailed) scheduleRender();
+}
+
 export function setLightSize(size) {
     if (typeof size !== "number" || !Number.isFinite(size) || size < 0 || size > 1) {
         throw new RangeError("Light size must be a finite number between 0 and 1.");
@@ -1104,7 +1163,7 @@ export function setLightSize(size) {
 
 export function setShaderFeature(name, enabled) {
     const features = shaderFeatures[renderMode];
-    if (!Object.hasOwn(features, name)) {
+    if (!features || !Object.hasOwn(features, name)) {
         throw new RangeError(`Unknown shader feature: ${name}.`);
     }
     if (typeof enabled !== "boolean") {

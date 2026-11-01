@@ -3,14 +3,14 @@
 @implements IAsyncDisposable
 @inject IJSRuntime JS
 
-<PageTitle>Rendering Playground</PageTitle>
+<PageTitle>Rendering Sandbox</PageTitle>
 
 <main class="workbench">
     <header class="workbench-header">
         <div>
             <p class="eyebrow">RENDERING RESEARCH · FLEXIBLE EXPERIMENTS</p>
-            <h1>Rendering Playground</h1>
-            <p class="intro">Compare triangle-based rendering with math-defined vent walls and access hatches.</p>
+            <h1>Rendering Sandbox</h1>
+            <p class="intro">Compare triangle rendering, SDF vent walls, and an all-SDF maintenance bay.</p>
         </div>
         <div class="renderer-status" role="status" aria-live="polite">
             <span class="renderer-indicator" aria-hidden="true"></span>
@@ -83,6 +83,7 @@
                         @onchange="RenderModeChanged">
                     <option value="triangles">Triangle mesh + surface shader</option>
                     <option value="raymarch">Ray-marched SDF vent wall</option>
+                    <option value="utility">Ray-marched maintenance bay</option>
                     <option value="reference">Matching triangles + shadow maps</option>
                 </select>
                 @if (_renderMode == "triangles")
@@ -93,6 +94,16 @@
                         Procedural vent grill
                     </label>
                     <p class="experiment-note">The editable scene is expanded into triangles; the grill is a flat per-fragment pattern.</p>
+                }
+                else if (_renderMode == "utility")
+                {
+                    <p class="experiment-note">One complete wall bay is built from signed-distance functions and rendered by ray marching: wall, panel, pipes, work light, floor, and shadows. The blue electrical fault flashes behind the right pipe bundle.</p>
+                    <label for="render-scale">Render resolution</label>
+                    <select id="render-scale" value="@_renderScale.ToString(CultureInfo.InvariantCulture)" @onchange="RenderScaleChanged">
+                        <option value="1">100% pixels (baseline)</option>
+                        <option value="0.75">75% width / height</option>
+                        <option value="0.5">50% width / height (quarter pixels)</option>
+                    </select>
                 }
                 else
                 {
@@ -152,6 +163,21 @@
                                @onchange="FakeDepthChanged" />
                         Fake depth shading
                     </label>
+                }
+                else if (_renderMode == "utility")
+                {
+                    <p class="experiment-note">The stationary work light casts SDF shadows. The control panel blinks without acting as a light source. A broken component arcs from the cavity behind the pipework.</p>
+                    <label class="checkbox-label">
+                        <input type="checkbox" checked="@_utilityArcEnabled" disabled="@(!_editor.Ready)"
+                               @onchange="UtilityArcChanged" />
+                        Electrical arc fault
+                    </label>
+                    <label for="arc-brightness">Arc brightness: @_utilityArcBrightness.ToString("0.0", CultureInfo.InvariantCulture)×</label>
+                    <input id="arc-brightness" type="range" min="0" max="12" step="0.25"
+                           value="@_utilityArcBrightness.ToString(CultureInfo.InvariantCulture)"
+                           disabled="@(!_editor.Ready || !_utilityArcEnabled)"
+                           @oninput="UtilityArcBrightnessChanged" />
+                    <p class="frame-timing" aria-live="off">@_frameTiming</p>
                 }
                 else
                 {
@@ -374,7 +400,7 @@
 
     <section class="panel shader-editor-panel" aria-label="Live shader editor">
         <details class="shader-details">
-        <summary>Live WGSL editor — @(_renderMode == "raymarch" ? "raymarched-vent-wall.wgsl" : _renderMode == "reference" ? "reference-mesh.wgsl + shared SDF shading" : "procedural-vent-grill.wgsl")</summary>
+        <summary>Live WGSL editor — @(_renderMode == "raymarch" ? "raymarched-vent-wall.wgsl" : _renderMode == "utility" ? "raymarched-maintenance-bay.wgsl" : _renderMode == "reference" ? "reference-mesh.wgsl + shared SDF shading" : "procedural-vent-grill.wgsl")</summary>
         <div class="shader-editor-content">
         <p id="shader-editor-help" class="experiment-note">
             Edit the source below. It recompiles after you pause typing; errors leave the last working shader active.
@@ -445,6 +471,8 @@
     private double _lightSize = 0.125;
     private bool _lightAnimationEnabled;
     private double _lightAnimationSpeed = 0.25;
+    private bool _utilityArcEnabled = true;
+    private double _utilityArcBrightness = 8;
     private string _frameTiming = "Paused; idle frames are not rendered.";
     private string _renderMode = "triangles";
     private string _shaderSource = "";
@@ -595,7 +623,7 @@
 
     private async Task RenderModeChanged(ChangeEventArgs args)
     {
-        if (args.Value is not string mode || mode is not ("triangles" or "raymarch" or "reference"))
+        if (args.Value is not string mode || mode is not ("triangles" or "raymarch" or "utility" or "reference"))
         {
             _shaderStatus = "Could not read the renderer mode.";
             return;
@@ -611,6 +639,7 @@
             _shaderSource = await _workbench.InvokeAsync<string>("setRenderMode", mode);
             _renderMode = mode;
             _shaderStatus = mode == "raymarch" ? "Ray-marched SDF renderer active." :
+                mode == "utility" ? "Ray-marched maintenance bay active." :
                 mode == "reference" ? "Matching triangles with cached shadow maps active." : "Triangle-mesh renderer active.";
         }
         catch (JSException exception)
@@ -856,6 +885,54 @@
         catch (JSException exception)
         {
             _shaderStatus = $"Could not update light animation speed: {exception.Message}";
+        }
+    }
+
+    private async Task UtilityArcChanged(ChangeEventArgs args)
+    {
+        if (args.Value is not bool enabled)
+        {
+            await ReportInvalidSetting("Could not read the electrical arc setting.");
+            return;
+        }
+        if (_workbench is null)
+        {
+            _shaderStatus = "The workbench is not available.";
+            return;
+        }
+        try
+        {
+            await _workbench.InvokeVoidAsync("setUtilityArcEnabled", enabled);
+            _utilityArcEnabled = enabled;
+        }
+        catch (JSException exception)
+        {
+            _shaderStatus = $"Could not update the electrical arc: {exception.Message}";
+        }
+    }
+
+    private async Task UtilityArcBrightnessChanged(ChangeEventArgs args)
+    {
+        if (args.Value is not string input ||
+            !double.TryParse(input, NumberStyles.Float, CultureInfo.InvariantCulture, out var brightness) ||
+            !double.IsFinite(brightness) || brightness < 0 || brightness > 12)
+        {
+            _shaderStatus = "Arc brightness must be between 0 and 12.";
+            return;
+        }
+        if (_workbench is null)
+        {
+            _shaderStatus = "The workbench is not available.";
+            return;
+        }
+        try
+        {
+            await _workbench.InvokeVoidAsync("setUtilityArcBrightness", brightness);
+            _utilityArcBrightness = brightness;
+        }
+        catch (JSException exception)
+        {
+            _shaderStatus = $"Could not update arc brightness: {exception.Message}";
         }
     }
 

@@ -1,5 +1,7 @@
 # Roadmap (proposed, not committed)
 
+This roadmap describes possible work on the core project. The [Construction Grammar Sandbox](../sandboxes/modular-apartment-playground/README.md) and [Rendering Sandbox](../sandboxes/rendering-playground/README.md) are scoped experiments; progress there does not complete these stages or select the core implementation stack.
+
 ## 0 — Foundation
 Choose engine/language, licensing, asset metadata policy, build/test tooling, and repository conventions. Capture architectural decisions in docs/adr/.
 

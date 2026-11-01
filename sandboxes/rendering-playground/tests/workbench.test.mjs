@@ -34,6 +34,8 @@ class FakeRenderer {
     setLightSize(size) { this.lightSize = size; }
     setLightAnimation(enabled) { this.lightAnimation = enabled; }
     setLightAnimationSpeed(speed) { this.lightAnimationSpeed = speed; }
+    setUtilityArcEnabled(enabled) { this.utilityArcEnabled = enabled; }
+    setUtilityArcBrightness(brightness) { this.utilityArcBrightness = brightness; }
     async setRenderMode(mode, onStatus) {
         this.renderMode = mode;
         onStatus?.(`${mode} renderer active.`);
@@ -198,6 +200,29 @@ test("lamp animation controls reach the renderer without editing construction", 
     }
     assert.equal(controller.model.walls.length, 0);
 });
+
+test("maintenance bay arc controls reach the renderer without editing construction", async (t) => {
+    const { controller, renderer } = await setup(t);
+    controller.setUtilityArcEnabled(false);
+    controller.setUtilityArcBrightness("9.5");
+
+    assert.equal(renderer.utilityArcEnabled, false);
+    assert.equal(renderer.utilityArcBrightness, 9.5);
+    assert.throws(() => controller.setUtilityArcBrightness("invalid"), RangeError);
+    assert.equal(controller.model.walls.length, 0);
+});
+
+test("maintenance bay can be selected without changing construction data", async (t) => {
+    const { controller, renderer } = await setup(t);
+    const source = await controller.setRenderMode("utility");
+
+    assert.equal(source, "utility shader source");
+    assert.equal(renderer.renderMode, "utility");
+    assert.equal(controller.renderMode, "utility");
+    assert.equal(controller.model.walls.length, 0);
+    assert.match(controller.snapshot().feedback, /ray-marched maintenance bay/i);
+});
+
 test("renderer mode switches preserve construction data and report the active shader", async (t) => {
     const { controller, renderer } = await setup(t);
     const statuses = [];

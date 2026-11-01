@@ -2,6 +2,8 @@
 
 No engine, programming language, storage format, or networking architecture has been chosen.
 
+The browser sandboxes are research tools, not committed core architecture. The Construction Grammar Sandbox currently tests manual wall placement; the separate Rendering Sandbox tests renderer techniques. Their scoped technology choices and scene models do not settle core project contracts.
+
 ## Candidate domain concepts
 - **Piece**: geometry/visual asset plus transform, bounds, optional grid settings, and zero or more connectors.
 - **Connector**: local pose, type/interface, alignment constraints, and compatibility metadata; may be exposed through an assembly.

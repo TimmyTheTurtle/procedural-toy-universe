@@ -18,7 +18,7 @@ The project is **not a Star Wars game**. Familiar science-fiction craft and loca
 - No destructibility requirement in the initial construction milestone.
 
 ## Starting point
-Read [docs/VISION.md](docs/VISION.md), [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), and [docs/ROADMAP.md](docs/ROADMAP.md). First prototype: a small 3D modular room/corridor editor with snapping, connector exposure, saved blueprints, and deterministic constraint-aware assembly. Do not start with a full planet or spaceship.
+Read [docs/VISION.md](docs/VISION.md), [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), and [docs/ROADMAP.md](docs/ROADMAP.md). The first core-project prototype remains a proposed small 3D construction tool with reusable assemblies and constrained placement; its engine and implementation contracts are open. The [Construction Grammar Sandbox](sandboxes/modular-apartment-playground/README.md) currently explores manual wall construction, while the [Rendering Sandbox](sandboxes/rendering-playground/README.md) explores rendering techniques on a separate scene. Neither sandbox settles the core architecture or implements the full vision.
 
 ## Agent onboarding
 Read [AGENTS.md](AGENTS.md). Copilot can use the `/initialize` skill from [`.github/skills/initialize/SKILL.md`](.github/skills/initialize/SKILL.md) where repository skills are supported. Codex should read `AGENTS.md` and may use the `initialize` skill under `.agents/skills/initialize/` where skills are supported. Both use the same instructions and project docs.
@@ -29,8 +29,8 @@ In the Copilot harness, select [Ada](.github/agents/ada.agent.md) for collaborat
 - [Certification training hub](training/README.md) — GH-600, AI-103, and AI-500 study tracks with shared Responsible AI practices.
 
 ## Experiment sandboxes
-- [Construction Workbench](sandboxes/modular-apartment-playground/README.md) — editable walls and spatial placement for construction-grammar research.
-- [Rendering Playground](sandboxes/rendering-playground/README.md) — a copied wall-scene baseline for GPU rendering-reuse experiments.
+- [Construction Grammar Sandbox](sandboxes/modular-apartment-playground/README.md) — editable walls and spatial placement for construction-grammar research.
+- [Rendering Sandbox](sandboxes/rendering-playground/README.md) — a copied wall-scene baseline plus separate reference scenes for rendering experiments.
 
 ## Status
 Core project is in concept / architecture exploration; its implementation stack is not chosen. Research sandboxes may use scoped stacks independently.

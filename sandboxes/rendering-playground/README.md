@@ -1,16 +1,17 @@
-# Rendering Playground
+# Rendering Sandbox
 
-A separate sandbox for rendering research, starting with the editable wall-placement scene from the [Construction Workbench](../modular-apartment-playground/README.md). The walls provide a useful construction-grammar test scene; this sandbox's focus is understanding and comparing rendering techniques.
+A separate sandbox for rendering research, starting with the editable wall-placement scene from the [Construction Grammar Sandbox](../modular-apartment-playground/README.md). The walls provide a useful construction-grammar test scene; this sandbox's focus is understanding and comparing rendering techniques.
 
 ## Renderer modes
 
-Choose between three renderers in **Shader experiment**:
+Choose between four renderers in **Shader experiment**:
 
 - **Triangle mesh + surface shader** is the editable wall scene. The wall boxes become triangles, and the optional vent grill is still a flat per-fragment pattern. It does not change geometry, collision, or lighting normals.
 - **Ray-marched SDF vent wall** draws two fixed reference walls with mathematical signed-distance functions (SDFs). Each wall is a box field; the vent is cut through it with a subtraction operation; the frame and horizontal slats are unions of box fields. Rays are marched through the field, and normals are estimated from nearby distance samples for lighting. Turning off **Carve vent opening through wall** restores a solid wall; disabling **Add math-defined slats** exposes the through-opening.
+- **Ray-marched maintenance bay** draws a separate single-wall work area. The wall, floor, panel, pipes, fixed high work light, and concealed electrical arc are signed-distance functions evaluated by the ray marcher; no scene surface is modeled as triangles. A full-screen carrier triangle only launches camera rays. Capsule-shaped pipe runs leave a reach-through opening at the panel and several project into the room to cast shadows onto the wall and floor. The panel screen and red/white indicators are emissive but do not light nearby surfaces. The work light is stationary; the blue-white fault arc uses a deterministic burst pattern, can be disabled, and has an adjustable brightness. Four-sample tetrahedral normals remain view-independent while orbiting. Lower **Render resolution** if the scene is slow on the current device.
 - **Matching triangles + shadow maps** generates the same reference hatch/vent assemblies as actual triangle surfaces with analytic face normals. Box subtraction creates the wall openings and hatch pockets; exposed union faces are split at intersections to avoid internal faces and coplanar overlap. Moving fixture geometry stays separate from the static union so its motion does not require remeshing the walls. It shares the SDF renderer's material colors, direct lighting, ambient fill, emission, floor, and optional SDF AO.
 
-Both reference modes deliberately show the side-by-side comparison, not every editable wall, construction grid, or placement preview. Construction data is unchanged and remains visible in the original triangle mode. All modes use the same orbit/zoom camera. Only the two reference modes are comparable performance scenes; the original editable scene is not a benchmark counterpart.
+Both hatch-reference modes deliberately show the side-by-side comparison, not every editable wall, construction grid, or placement preview. The maintenance bay is a separate SDF-only scene. Construction data is unchanged and remains visible in the original triangle mode. All modes use the same orbit/zoom camera. Only the two hatch-reference modes are comparable performance scenes; the original editable scene and maintenance bay are not benchmark counterparts.
 
 ### Matched comparison controls
 
@@ -96,7 +97,7 @@ The triangle mode expands scene boxes into triangle geometry and applies simple 
 
 ## Run locally
 
-Requires the .NET 10 SDK and a browser with WebGPU support. From the repository root:
+Requires the .NET 10 SDK and a browser with WebGPU support. This sandbox uses HTTP port `5291` (HTTPS `7110`), distinct from the Construction Grammar Sandbox on HTTP `5290` (HTTPS `7109`), so both can run concurrently. VS Code Remote is configured to forward both HTTP ports. From the repository root:
 
 ```sh
 dotnet run --project sandboxes/rendering-playground/RenderingPlayground.csproj
