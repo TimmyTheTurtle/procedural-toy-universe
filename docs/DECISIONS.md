@@ -31,7 +31,7 @@ This is the durable record of consequential project decisions and the important 
 ### D-004 — Publish the first sandbox to Pages manually
 
 - **Date:** 2026-10-26
-- **Status:** Accepted
+- **Status:** Superseded by D-018 for the published site layout; the manual-trigger policy remains.
 - **Decision:** Publish `sandboxes/modular-apartment-playground/` through a separate GitHub Actions workflow triggered only by `workflow_dispatch`. Do not deploy on every sandbox push; the existing validation workflow remains responsible for push and pull-request checks.
 - **Context and rationale:** The prior deployment workflow referenced missing `projects/grannys-house-trials/...` directories. A manual trigger makes site publication deliberate while the sandbox is still evolving and avoids coupling routine validation to public deployment. The repository Pages source must be set to GitHub Actions before the first deployment.
 - **References:** User-approved workflow discussion on 2026-10-26; [publish workflow](../.github/workflows/deploy-blazor-webgpu.yml); [sandbox README](../sandboxes/modular-apartment-playground/README.md); [Q-008](OPEN_QUESTIONS.md).
@@ -139,6 +139,14 @@ This is the durable record of consequential project decisions and the important 
 - **Decision:** The Construction Grammar Sandbox is a small WebGPU wall-editing experiment: one fixed wall type, manual placement and manipulation, optional snapping, and in-memory state. It does not implement semantic grammar, enclosure detection, rooms, ceilings, or procedural layout. The core project stack and architecture remain open.
 - **Context and rationale:** The sandbox has advanced from the original rotating-cube and interchangeable-wall scene to an editable construction workbench. Keeping its current behavior distinct from the broader vision prevents sandbox experiments from being mistaken for core architecture or completed grammar functionality.
 - **References:** [Construction Grammar Sandbox](../sandboxes/modular-apartment-playground/README.md); [current sandbox state and enclosure experiment](../sandboxes/modular-apartment-playground/CONSTRUCTION_WORKBENCH_BRIEF.md); user request to bring the documentation current on 2026-11-01.
+
+### D-018 — Publish both research sandboxes in separate Pages directories
+
+- **Date:** 2026-11-01
+- **Status:** Accepted
+- **Decision:** Publish the Construction Grammar Sandbox under `/construction-grammar/` and the Rendering Sandbox under `/rendering/` in one GitHub Pages artifact, with a root index linking to both. Keep publication manual through `workflow_dispatch`; keep per-sandbox validation separate.
+- **Context and rationale:** The user requested that both sandboxes be available on Pages in their own directories. Each Blazor app needs a base URL matching its subdirectory so framework assets and client-side routing continue to work.
+- **References:** [Pages deployment workflow](../.github/workflows/deploy-blazor-webgpu.yml); [Construction Grammar Sandbox publishing instructions](../sandboxes/modular-apartment-playground/README.md); [Rendering Sandbox publishing instructions](../sandboxes/rendering-playground/README.md); [D-004](#d-004--publish-the-first-sandbox-to-pages-manually).
 
 ## Updating this record
 

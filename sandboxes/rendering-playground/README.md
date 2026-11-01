@@ -105,6 +105,10 @@ dotnet run --project sandboxes/rendering-playground/RenderingPlayground.csproj
 
 WebGPU requires a secure context, such as `localhost` or HTTPS. Plain HTTP at a LAN IP is not a secure context.
 
+## Publish on GitHub Pages
+
+The repository's **Publish construction and rendering sandboxes** workflow deploys this app at `/rendering/` alongside the [Construction Grammar Sandbox](../modular-apartment-playground/README.md) at `/construction-grammar/`. Publication is manual from the Actions tab; both sandboxes share one Pages deployment but retain separate directories.
+
 ## Validate
 
 Run the sandbox's dependency-free JavaScript tests and .NET build from the repository root:

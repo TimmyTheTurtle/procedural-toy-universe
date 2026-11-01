@@ -52,4 +52,4 @@ node --experimental-default-type=module --test sandboxes/modular-apartment-playg
 
 The automated graphics-diagnostic and retry tests simulate insecure contexts, unavailable WebGPU, initialization failures, and device loss. They do not establish that every failure and recovery path has been exercised on an affected browser or device.
 
-The sandbox also has a GitHub Actions build-validation workflow. Publishing is intentionally separate: run the repository's **Publish modular apartment playground** workflow manually from the Actions tab. The repository's Settings → Pages → Build and deployment source must be set to **GitHub Actions** before the first deployment.
+The sandbox has its own GitHub Actions build-validation workflow. Publishing is separate and manual: run **Publish construction and rendering sandboxes** from the Actions tab. It deploys this app at `/construction-grammar/` and the [Rendering Sandbox](../rendering-playground/README.md) at `/rendering/`, with links from the Pages root. The repository's Settings → Pages → Build and deployment source must be set to **GitHub Actions**.

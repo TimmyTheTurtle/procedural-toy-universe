@@ -1,4 +1,4 @@
-name: Publish modular apartment playground
+name: Publish construction and rendering sandboxes
 
 on:
   workflow_dispatch:
@@ -28,37 +28,74 @@ jobs:
         id: pages
         uses: actions/configure-pages@v5
 
-      - name: Publish application
+      - name: Publish construction sandbox
         run: >
           dotnet publish
           sandboxes/modular-apartment-playground/ModularApartmentPlayground.csproj
           --configuration Release
-          --output artifacts/publish
+          --output artifacts/construction-publish
 
-      - name: Set site base path and routing fallback
+      - name: Publish rendering sandbox
+        run: >
+          dotnet publish
+          sandboxes/rendering-playground/RenderingPlayground.csproj
+          --configuration Release
+          --output artifacts/rendering-publish
+
+      - name: Assemble Pages site
         env:
-          BASE_PATH: ${{ steps.pages.outputs.base_path }}
+          PAGES_BASE_PATH: ${{ steps.pages.outputs.base_path }}
         run: |
           python3 - <<'PY'
           import os
           import shutil
           from pathlib import Path
 
-          site = Path("artifacts/publish/wwwroot")
-          index = site / "index.html"
-          base_path = os.environ["BASE_PATH"].rstrip("/") + "/"
-          content = index.read_text(encoding="utf-8")
-          if '<base href="/" />' not in content:
-              raise RuntimeError("Could not find the Blazor base href placeholder.")
-          content = content.replace('<base href="/" />', f'<base href="{base_path}" />', 1)
-          index.write_text(content, encoding="utf-8")
-          shutil.copyfile(index, site / "404.html")
+          site = Path("artifacts/site")
+          site.mkdir(parents=True, exist_ok=True)
+          base_path = os.environ["PAGES_BASE_PATH"].rstrip("/")
+          sandboxes = [
+              ("construction-grammar", Path("artifacts/construction-publish/wwwroot")),
+              ("rendering", Path("artifacts/rendering-publish/wwwroot")),
+          ]
+
+          for directory, source in sandboxes:
+              destination = site / directory
+              shutil.copytree(source, destination)
+              index = destination / "index.html"
+              content = index.read_text(encoding="utf-8")
+              base_tag = '<base href="/" />'
+              if base_tag not in content:
+                  raise RuntimeError(f"Could not find the Blazor base href in {index}.")
+              app_base = f"{base_path}/{directory}/"
+              content = content.replace(base_tag, f'<base href="{app_base}" />', 1)
+              index.write_text(content, encoding="utf-8")
+              shutil.copyfile(index, destination / "404.html")
+
+          (site / "index.html").write_text("""<!doctype html>
+          <html lang="en">
+          <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1">
+            <title>Procedural Toy Universe Sandboxes</title>
+          </head>
+          <body>
+            <main>
+              <h1>Procedural Toy Universe Sandboxes</h1>
+              <ul>
+                <li><a href="construction-grammar/">Construction Grammar Sandbox</a></li>
+                <li><a href="rendering/">Rendering Sandbox</a></li>
+              </ul>
+            </main>
+          </body>
+          </html>
+          """, encoding="utf-8")
           PY
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: artifacts/publish/wwwroot
+          path: artifacts/site
 
   deploy:
     environment:
