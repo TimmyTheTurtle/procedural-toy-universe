@@ -43,6 +43,14 @@ A small progression could test wall-loop feedback first, then try a few manually
 - The project-wide physical-fit, preservation, optional-grid, explicit-connector, and style/geometry separation principles continue to apply to core project decisions; this small sandbox is not a complete implementation of them.
 - Add or revise durable project records when an experiment leads to a substantive decision. Keep exploratory observations here or in conversation without turning each idea into a requirement.
 
+## Discussion tracking
+
+The [Construction Workbench tracking issue](https://github.com/TimmyTheTurtle/procedural-toy-universe/issues/11) collects candidate experiments and links to focused discussions:
+
+- [Editable-wall baseline](https://github.com/TimmyTheTurtle/procedural-toy-universe/issues/8)
+- [Enclosed boundaries and overhead coverage](https://github.com/TimmyTheTurtle/procedural-toy-universe/issues/9)
+- [Lighting and shadows](https://github.com/TimmyTheTurtle/procedural-toy-universe/issues/10)
+
 ## References
 
 - [Project vision](../../docs/VISION.md)
