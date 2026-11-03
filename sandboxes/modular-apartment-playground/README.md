@@ -41,6 +41,7 @@ Manual wall overlaps and crossings are allowed but produce a warning. Ordinary s
 - The visible ground and grid are construction guides, not generated room floors. The editor does not identify enclosed spaces or provide manual or generated ceilings yet. Wall variants, persistence, and semantic grammar execution are also unexplored.
 - WebGL2 remains deferred unless testing demonstrates a compatibility need.
 - See [CONSTRUCTION_WORKBENCH_BRIEF.md](CONSTRUCTION_WORKBENCH_BRIEF.md) for the current implementation state and open enclosure experiments.
+- See [CONSTRUCTION_WORKBENCH_TRACKING.md](CONSTRUCTION_WORKBENCH_TRACKING.md) for candidate directions and related discussions.
 
 ## Validation and publishing
 
